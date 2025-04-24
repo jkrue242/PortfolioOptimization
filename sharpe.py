@@ -1,24 +1,29 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 class SharpeLoss(nn.Module):
-  def __init__(self):
-    super().__init__()
+    def __init__(self, epsilon=1e-6, risk_free_rate=0.0):
+        super().__init__()
+        self.epsilon = epsilon
+        self.risk_free_rate = risk_free_rate
 
-    # to avoid div by 0
-    self.eps = 1e-6
+    def forward(self, weights, returns):
+        portfolio_returns = torch.sum(weights * returns, dim=1)
+        mean_return = torch.mean(portfolio_returns)
+        std_return = torch.std(portfolio_returns) + self.epsilon
 
-  def forward(self, weights, returns):
-    # returns
-    returns = (weights * returns).sum(dim=1)
+        sharpe_ratio = mean_return / std_return
+        return -sharpe_ratio
 
-    # mean returns
-    mean_returns = returns.mean()
 
-    # std of returns
-    std_excess = returns.std(unbiased=False) + self.eps
+def calculate_sharpe(weights, returns):
+    portfolio_returns = torch.sum(weights * returns, dim=1)
+    mean_return = torch.mean(portfolio_returns)
+    std_return = torch.std(portfolio_returns)
 
-    # sharpe ratio
-    sharpe = mean_returns / std_excess
+    if std_return == 0:
+        return 0.0
 
-    # negative because we minimize loss
-    return -sharpe
+    return (mean_return / std_return).item()
